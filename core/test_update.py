@@ -4,4 +4,4 @@ if __name__ == "__main__":
     rezultat = update_signatures(
         url="https://raw.githubusercontent.com/TiberiuTech/antivirus/main/signatures.txt"
     )
-    print("Rezultat actualizare:", rezultat)
+    print("actuallize result", rezultat)

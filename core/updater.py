@@ -9,11 +9,11 @@ def update_signatures(
         if response.status_code == 200:
             with open(local_path, "w") as f:
                 f.write(response.text)
-            print("[INFO] Semnăturile au fost actualizate cu succes.")
+            print("[INFO] Signatures updated successfully.")
             return True
         else:
-            print(f"[Eroare] Nu s-au putut descărca semnăturile (Status code: {response.status_code})")
+            print(f"[ERROR] Failed to download signatures (Status code: {response.status_code})")
             return False
     except Exception as e:
-        print(f"[Eroare] Actualizarea semnăturilor a eșuat: {e}")
+        print(f"[ERROR] Failed to update signatures: {e}")
         return False
