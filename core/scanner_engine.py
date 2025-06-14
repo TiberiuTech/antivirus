@@ -1,0 +1,1 @@
+# Logica antivirus - motor de scanare 
