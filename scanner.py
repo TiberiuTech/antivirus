@@ -1,21 +1,21 @@
 import sys
 import traceback
 
-print("Începe pornirea programului...")
+print("Start program...")
 
 try:
     from gui.interface import launch_gui
-    print("Importul GUI-ului a reușit")
+    print("GUI imported successfully")
 except Exception as e:
-    print(f"Eroare la importul GUI-ului: {str(e)}")
+    print(f"Error importing GUI: {str(e)}")
     traceback.print_exc()
     sys.exit(1)
 
 if __name__ == "__main__":
     try:
-        print("Începe lansarea interfeței grafice...")
+        print("Start GUI...")
         launch_gui()
     except Exception as e:
-        print(f"Eroare la lansarea GUI-ului: {str(e)}")
+        print(f"Error starting GUI: {str(e)}")
         traceback.print_exc()
         sys.exit(1)

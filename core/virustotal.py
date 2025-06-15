@@ -32,7 +32,7 @@ def check_hash_virustotal(file_hash):
         else:
             return None
     except Exception as e:
-        print(f'Eroare VirusTotal: {e}')
+        print(f'Error VirusTotal: {e}')
         return None
 
 def upload_file_virustotal(file_path):
@@ -50,8 +50,8 @@ def upload_file_virustotal(file_path):
             analysis_id = data['data']['id']
             return f'https://www.virustotal.com/gui/file/{analysis_id}/detection'
         else:
-            print(f'Upload VirusTotal eșuat: {resp.status_code} {resp.text}')
+            print(f'Upload VirusTotal not found: {resp.status_code} {resp.text}')
             return None
     except Exception as e:
-        print(f'Eroare upload VirusTotal: {e}')
+        print(f'Error upload VirusTotal: {e}')
         return None 
