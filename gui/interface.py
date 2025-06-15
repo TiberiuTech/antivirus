@@ -9,6 +9,11 @@ import threading
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import time
+from core.virustotal import check_hash_virustotal, upload_file_virustotal
+import hashlib
+from core.quarantine import list_quarantine_files, restore_from_quarantine, delete_from_quarantine
+import pickle
+from core.ml_features import extract_features
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -110,6 +115,13 @@ class AntivirusGUI(ctk.CTk):
 
     def _scan_thread(self):
         start_time = time.time()
+        # Încarcă modelul AI/ML
+        model = None
+        try:
+            with open("ai_model/model.pkl", "rb") as f:
+                model = pickle.load(f)
+        except Exception as e:
+            self.output.insert("end", f"[AI/ML] Modelul nu a putut fi încărcat: {e}\n")
         # Animatie progres
         for i in range(1, 101):
             self.progress.set(i/100)
@@ -117,6 +129,42 @@ class AntivirusGUI(ctk.CTk):
         signatures = load_signatures("signatures.txt")
         infected, suspicious = scan_directory(self.folder_path, signatures, log_file=None)
         alert_message = ""
+        all_files = []
+        for root, _, files in os.walk(self.folder_path):
+            for name in files:
+                all_files.append(os.path.join(root, name))
+        # AI/ML verdict
+        if model:
+            self.output.insert("end", f"[AI/ML] Analizez {len(all_files)} fișiere cu modelul AI...\n")
+            for file in all_files:
+                feats = extract_features(file)
+                try:
+                    pred = model.predict([feats])[0]
+                    if pred == 1:
+                        self.output.insert("end", f"  [AI] SUSPICIOS: {file}\n")
+                        alert_message += f"[AI] SUSPICIOS: {file}\n"
+                except Exception as e:
+                    self.output.insert("end", f"  [AI] Eroare la predicție pentru {file}: {e}\n")
+        self.output.insert("end", f"[VIRUSTOTAL] Verific hash-urile la {len(all_files)} fișiere...\n")
+        for file in all_files:
+            try:
+                with open(file, 'rb') as f:
+                    file_bytes = f.read()
+                file_hash = hashlib.sha256(file_bytes).hexdigest()
+                vt = check_hash_virustotal(file_hash)
+                if vt is None:
+                    self.output.insert("end", f"  {file}: Eroare la interogare VirusTotal\n")
+                elif vt.get('not_found'):
+                    self.output.insert("end", f"  {file}: Hash necunoscut pe VirusTotal. Trimit fișierul spre analiză...\n")
+                    link = upload_file_virustotal(file)
+                    if link:
+                        self.output.insert("end", f"    [UPLOAD] Fișierul a fost trimis. Vezi raportul (poate dura câteva minute): {link}\n")
+                    else:
+                        self.output.insert("end", f"    [UPLOAD] Eroare la upload către VirusTotal.\n")
+                else:
+                    self.output.insert("end", f"  {file}: Detectat de {vt['detected']}/{vt['total']} motoare | Detalii: {vt['permalink']}\n")
+            except Exception as e:
+                self.output.insert("end", f"  {file}: Eroare la calcul hash/VT: {e}\n")
         if not infected:
             self.output.insert("end", "[RESULTAT] Niciun fișier infectat găsit.\n")
         else:
@@ -208,16 +256,31 @@ class AntivirusGUI(ctk.CTk):
             widget.destroy()
         label = ctk.CTkLabel(frame, text="Fișiere în carantină:", font=("Arial", 16))
         label.pack(pady=10)
-        quarantine_dir = "quarantine"
-        if not os.path.exists(quarantine_dir):
-            ctk.CTkLabel(frame, text="Nu există fișiere în carantină.").pack(pady=10)
-            return
-        files = os.listdir(quarantine_dir)
+        files = list_quarantine_files()
         if not files:
             ctk.CTkLabel(frame, text="Nu există fișiere în carantină.").pack(pady=10)
             return
         for f in files:
-            ctk.CTkLabel(frame, text=f, anchor="w").pack(fill="x", padx=20)
+            row = ctk.CTkFrame(frame)
+            row.pack(fill="x", padx=10, pady=5)
+            info = f"{f['file']}\nOriginal: {f['original_path']}\nMotiv: {f['reason']}\nDată: {f['date']}"
+            ctk.CTkLabel(row, text=info, width=500, anchor="w", justify="left").pack(side="left", padx=5)
+            ctk.CTkButton(row, text="Restaurare", width=100, command=lambda fn=f['file']: self.restore_quarantine(fn)).pack(side="left", padx=5)
+            ctk.CTkButton(row, text="Șterge", width=80, fg_color="red", command=lambda fn=f['file']: self.delete_quarantine(fn)).pack(side="left", padx=5)
+
+    def restore_quarantine(self, filename):
+        if restore_from_quarantine(filename):
+            messagebox.showinfo("Restaurare", "Fișierul a fost restaurat la locația originală.")
+        else:
+            messagebox.showerror("Eroare", "Restaurarea a eșuat.")
+        self.show_quarantine()
+
+    def delete_quarantine(self, filename):
+        if delete_from_quarantine(filename):
+            messagebox.showinfo("Ștergere", "Fișierul a fost șters definitiv din carantină.")
+        else:
+            messagebox.showerror("Eroare", "Ștergerea a eșuat.")
+        self.show_quarantine()
 
     def show_about(self):
         frame = self.frames["Despre"]

@@ -29,7 +29,7 @@ def scan_directory(path, signatures, log_file=None):
             if md5 in signatures:
                 if log_file:
                     log_file.write(f"[INFECTAT] {full_path}\n")
-                quarantine_path = quarantine_file(full_path)
+                quarantine_path = quarantine_file(full_path, reason="Semnătură detectată")
                 if quarantine_path and log_file:
                     log_file.write(f" => Mutat în carantină: {quarantine_path}\n")
                 infected.append(full_path)
@@ -37,7 +37,7 @@ def scan_directory(path, signatures, log_file=None):
             # Detecție euristică
             reasons = heuristic_scan_file(full_path)
             if reasons:
-                quarantine_path = quarantine_file(full_path)
+                quarantine_path = quarantine_file(full_path, reason=", ".join(reasons))
                 suspicious.append((full_path, reasons, quarantine_path))
                 if log_file:
                     log_file.write(f"[SUSPECT] {full_path} => {', '.join(reasons)}\n")
